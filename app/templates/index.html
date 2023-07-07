@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HRA Exemption Calculator</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .container {
+            max-width: 700px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .explanation-card {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .show-explanation {
+            display: none;
+        }
+        .step-card {
+            margin-bottom: 20px;
+        }
+        .step-card .card-header {
+            background-color: #f8f9fa;
+        }
+        .step-card .card-body {
+            padding: 10px;
+        }
+        .step-card .step-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .step-card .step-text {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>HRA Exemption Calculator</h1>
+        <form id="hra-form">
+            <div class="form-group">
+                <label for="salary" class="required-label">Monthly Basic Salary:</label>
+                <input type="text" class="form-control" id="salary" name="salary" pattern="[0-9]+(\.[0-9]+)?" required>
+            </div>
+            <div class="form-group">
+                <label for="rent" class="required-label">Monthly Rent:</label>
+                <input type="text" class="form-control" id="rent" name="rent" pattern="[0-9]+(\.[0-9]+)?" required>
+            </div>
+            <div class="form-group">
+                <label for="hra" class="required-label">Monthly HRA Received:</label>
+                <input type="text" class="form-control" id="hra" name="hra" pattern="[0-9]+(\.[0-9]+)?" required>
+            </div>
+            <div class="form-group">
+                <label for="da">Monthly Dearness Allowance (DA):</label>
+                <input type="text" class="form-control" id="da" name="da" pattern="[0-9]+(\.[0-9]+)?">
+            </div>
+            <div class="form-group">
+                <label for="city" class="required-label">City of Residence:</label>
+                <select class="form-control" id="city" name="city" required>
+                    <option value="" selected disabled>Select City</option>
+                    <option value="New Delhi">New Delhi</option>
+                    <option value="Chennai">Chennai</option>
+                    <option value="Kolkata">Kolkata</option>
+                    <option value="Mumbai">Mumbai</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="calculate-btn" disabled>Calculate</button>
+        </form>
+        <div id="result"></div>
+        <div class="show-explanation">
+            <button type="button" class="btn btn-link mt-3">View Explanation</button>
+            <div style="margin-top: 30px;" class="explanation-cards"></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#hra-form input, #hra-form select').on('input change', function() {
+                if ($('#hra-form')[0].checkValidity()) {
+                    $('#calculate-btn').prop('disabled', false);
+                } else {
+                    $('#calculate-btn').prop('disabled', true);
+                }
+            });
+
+            $('#hra-form').submit(function(event) {
+                event.preventDefault();
+                var daValue = $('#da').val().trim();
+                if (daValue === '') {
+                    $('#da').val('0');
+                }
+                $.ajax({
+                    type: 'POST',
+                    url: '/calculate_hra_exemption',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        if (response.error) {
+                            $('#result').html('<div class="alert alert-danger">' + response.error + '</div>');
+                            $('.show-explanation').hide();
+                            $('.explanation-cards').empty();
+                        } else {
+                            $('#result').html('<div class="alert alert-success">HRA Exemption: Rs. ' + response.hra_exempt.toFixed(2) + '</div>');
+                            $('.show-explanation').show();
+                            var explanation = response.explanation;
+                            var steps = explanation.split("Step").filter(Boolean);
+                            var explanationCards = $('.explanation-cards');
+                            explanationCards.empty();
+
+                            steps.forEach(function(step) {
+                                var stepNumber = step.match(/\d+/)[0];
+                                console.log(stepNumber)
+                                var stepText = step.replace(/^\s+|\s+$/g, '').replace(/^\d+:\s*/, '').replace(/\n/g, '<br>').replace(/(^[^:]+:)/, '<strong>$1</strong>');
+                                
+
+                                var card = $('<div class="step-card"></div>');
+                                var cardHeader = $('<div class="card-header">Step ' + stepNumber + '</div>');
+                                var cardBody = $('<div class="card-body">' + stepText + '</div>');
+
+                                card.append(cardHeader);
+                                card.append(cardBody);
+                                explanationCards.append(card);
+                            });
+                            $('.explanation-cards').hide();
+
+                        }
+                    },
+                    error: function() {
+                        $('#result').html('<div class="alert alert-danger">An error occurred.</div>');
+                        $('.show-explanation').hide();
+                        $('.explanation-cards').empty();
+                    }
+                });
+            });
+
+            $('.show-explanation button').click(function() {
+                $('.explanation-cards').slideToggle();
+            });
+            
+            $('.show-explanation').on('click', '.reset-btn', function() {
+                $('#result').empty();
+                $('.show-explanation').hide();
+                $('.explanation-cards').empty();
+                $('#hra-form')[0].reset();
+                $('#calculate-btn').prop('disabled', true);
+            });
+        });
+    </script>
+</body>
+</html>
